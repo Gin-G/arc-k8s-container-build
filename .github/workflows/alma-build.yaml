@@ -5,7 +5,7 @@ on: push
 jobs:
   almalinux9-build:
     name: Run AlmaLinux 9 build
-    runs-on: gh-arc-set-k8s-build-runner
+    runs-on: gh-arc-ncote-scale-set
 
     steps:
       - name: Check out code, generate compile commands
