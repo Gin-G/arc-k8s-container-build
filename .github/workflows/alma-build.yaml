@@ -1,0 +1,88 @@
+name: Almalinux9 Test Build
+
+on: push
+
+jobs:
+  almalinux9-build:
+    name: Run AlmaLinux 9 build
+    runs-on: gh-arc-set-k8s-build-runner
+
+    steps:
+      - name: Check out code, generate compile commands
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Get the current date for an image tag
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d.%H.%M')" >> $GITHUB_OUTPUT
+      - name: Apt Install
+        run: |
+          sudo apt update && \
+          sudo apt install -y curl jq
+
+      - name: Install Argo CLI
+        run: |
+          # Add commands to install Argo CLI here
+          curl -sLO https://github.com/argoproj/argo-workflows/releases/download/v3.5.11/argo-linux-amd64.gz
+          # Unzip
+          gunzip argo-linux-amd64.gz
+          # Make binary executable
+          chmod +x argo-linux-amd64
+          # Move binary to path
+          sudo mv ./argo-linux-amd64 /usr/local/bin/argo
+
+      - name: Submit Argo Workflow and stream logs
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DATE_TAG: ${{ steps.date.outputs.date }}
+        run: |
+          workflow_name=$(argo submit -n argo alma-workflow.yaml \
+            -p DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME}" \
+            -p DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}" \
+            -p DATE_TAG="${DATE_TAG}" \
+            --output name)
+          echo "WORKFLOW_NAME=$workflow_name" >> $GITHUB_ENV
+          
+          # Stream logs in real-time
+          argo logs -n argo $workflow_name -f &
+          log_pid=$!
+          
+          # Wait for workflow to complete
+          while true; do
+            status=$(argo get -n argo $workflow_name -o json | jq -r '.status.phase')
+            if [[ "$status" == "Succeeded" || "$status" == "Failed" || "$status" == "Error" ]]; then
+              break
+            fi
+            sleep 10
+          done
+          
+          echo "WORKFLOW_STATUS=$status" >> $GITHUB_ENV
+          
+      - name: Check Argo Workflow final status
+        run: |
+          echo "Workflow final status: ${{ env.WORKFLOW_STATUS }}"
+          
+          if [[ "${{ env.WORKFLOW_STATUS }}" != "Succeeded" ]]; then
+            echo "Argo Workflow failed or errored"
+            echo "Keeping workflow ${{ env.WORKFLOW_NAME }} for investigation"
+            exit 1
+          fi
+          
+          echo "Argo Workflow succeeded"
+  
+      - name: Clean up Argo Workflow
+        if: success()
+        run: |
+          echo "Deleting Argo Workflow ${{ env.WORKFLOW_NAME }}"
+          argo delete -n argo ${{ env.WORKFLOW_NAME }}
+          
+          # Wait for workflow and pods to be deleted
+          while argo get -n argo ${{ env.WORKFLOW_NAME }} &>/dev/null; do
+            echo "Waiting for workflow to be deleted..."
+            sleep 5
+          done
+          
+          echo "Workflow deleted successfully"
