@@ -1,0 +1,93 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: opensuse-build-
+spec:
+  entrypoint: opensuse-build
+  # Use a specific service account that has access to the required secrets
+  serviceAccountName: argo-workflows
+  # Mount Docker config for Kaniko
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: docker-config
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+
+  # Define arguments to accept GitHub secrets
+  arguments:
+    parameters:
+    - name: DOCKERHUB_USERNAME
+    - name: DOCKERHUB_TOKEN
+    - name: DATE_TAG
+
+  templates:
+    - name: opensuse-build
+      dag:
+        tasks:
+          - name: build-image
+            template: kaniko-build
+            arguments:
+              parameters:
+              - name: DOCKERHUB_USERNAME
+                value: "{{workflow.parameters.DOCKERHUB_USERNAME}}"
+              - name: DOCKERHUB_TOKEN
+                value: "{{workflow.parameters.DOCKERHUB_TOKEN}}"
+              - name: DATE_TAG
+                value: "{{workflow.parameters.DATE_TAG}}"
+
+    - name: kaniko-build
+      inputs:
+        parameters:
+        - name: DOCKERHUB_USERNAME
+        - name: DOCKERHUB_TOKEN
+        - name: DATE_TAG
+      container:
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+          - --context=git://github.com/Gin-G/arc-k8s-container-build.git
+          - --dockerfile=containers/opensuse15/base/Dockerfile
+          - --destination=docker.io/ncging/opensuse15-base:{{inputs.parameters.DATE_TAG}}
+          - --cache=true
+        env:
+        - name: DOCKER_CONFIG
+          value: /kaniko/.docker
+        volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
+        - name: kubeconfig
+          mountPath: /root/.kube
+          readOnly: true
+      volumes:
+      - name: docker-config
+        emptyDir: {}
+      - name: kubeconfig
+        secret:
+          secretName: kubeconfig-secret
+          items:
+          - key: config
+            path: config
+      initContainers:
+      - name: create-docker-config
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo '{
+            "auths": {
+              "https://index.docker.io/v1/": {
+                "auth": "'$(echo -n $DOCKERHUB_USERNAME:$DOCKERHUB_TOKEN | base64)'"
+              }
+            }
+          }' > /kaniko/.docker/config.json
+        env:
+        - name: DOCKERHUB_USERNAME
+          value: "{{inputs.parameters.DOCKERHUB_USERNAME}}"
+        - name: DOCKERHUB_TOKEN
+          value: "{{inputs.parameters.DOCKERHUB_TOKEN}}"
+        - name: DATE_TAG
+          value: "{{inputs.parameters.DATE_TAG}}"
+        volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
