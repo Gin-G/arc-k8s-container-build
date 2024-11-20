@@ -23,7 +23,7 @@ spec:
     - name: DATE_TAG
 
   templates:
-    - name: almalinux-build-workflow
+    - name: almalinux-build
       dag:
         tasks:
           - name: build-image
