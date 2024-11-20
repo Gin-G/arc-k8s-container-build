@@ -76,7 +76,7 @@ spec:
         - |
           echo '{
             "auths": {
-              "https://index.docker.io/v2/": {
+              "https://index.docker.io/v1/": {
                 "auth": "'$(echo -n $DOCKERHUB_USERNAME:$DOCKERHUB_TOKEN | base64)'"
               }
             }
