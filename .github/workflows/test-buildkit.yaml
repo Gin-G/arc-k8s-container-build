@@ -1,0 +1,27 @@
+name: Buildkit Test Build
+
+on: push
+
+jobs:
+  buildkit-build:
+    name: Run buildkit build
+    runs-on: gh-arc-ncote-scale-set
+
+    steps:
+      - name: Check out code, generate compile commands
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Get the current date for an image tag
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d.%H.%M')" >> $GITHUB_OUTPUT
+      - name: Apt Install
+        run: |
+          sudo apt update && \
+          sudo apt install -y curl jq
+      - name: Run test build
+        run: |
+          docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234
+          docker buildx build --platform linux/amd64,linux/arm64 -t buildkit-test:$DATE_TAG containers/almalinux9/base.
