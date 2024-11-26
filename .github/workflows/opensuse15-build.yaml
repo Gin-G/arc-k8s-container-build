@@ -16,7 +16,7 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -26,4 +26,4 @@ jobs:
       - name: Run test build
         run: |
           docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234
-          docker buildx build --push -t ncging/buildkit-test:${{ steps.date.outputs.date }} containers/opensuse15/base/.
+          docker buildx build --push -t ${{ secrets.DOCKERHUB_USERNAME }}/opensuse15-base:${{ steps.date.outputs.date }} containers/opensuse15/base/.
