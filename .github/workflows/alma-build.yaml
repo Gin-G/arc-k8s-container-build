@@ -1,6 +1,9 @@
 name: Almalinux9 Test Build
 
-on: push
+on: 
+  push:
+    paths:
+      - 'containers/almalinux9/**'
 
 jobs:
   almalinux9-build:

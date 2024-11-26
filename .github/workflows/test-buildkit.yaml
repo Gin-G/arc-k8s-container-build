@@ -23,5 +23,5 @@ jobs:
           sudo apt install -y curl jq
       - name: Run test build
         run: |
-          docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234
+          docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234 --load
           docker buildx build --platform linux/amd64,linux/arm64 -t buildkit-test:$DATE_TAG containers/almalinux9/base.

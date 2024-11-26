@@ -1,7 +1,9 @@
 name: OpenSUSE15 Test Build
 
-on: push
-
+on: 
+  push:
+    paths:
+      - 'containers/opensuse15/**'
 jobs:
   opensuse15-build:
     name: Run OpenSUSE15 build
