@@ -21,10 +21,6 @@ jobs:
       - name: Get the current date for an image tag
         id: date
         run: echo "date=$(date +'%Y-%m-%d.%H.%M')" >> $GITHUB_OUTPUT
-      - name: Apt Install
-        run: |
-          sudo apt update && \
-          sudo apt install -y curl jq
       - name: Run test build
         run: |
           docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234
