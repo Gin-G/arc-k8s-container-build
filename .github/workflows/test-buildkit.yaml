@@ -28,4 +28,4 @@ jobs:
       - name: Run test build
         run: |
           docker buildx create --use --driver=remote tcp://buildkit-buildkit-service.arc-systems:1234
-          docker buildx build --push -t buildkit-test:${{ steps.date.outputs.date }} containers/almalinux9/base/.
+          docker buildx build --push -t ncging/buildkit-test:${{ steps.date.outputs.date }} containers/almalinux9/base/.
